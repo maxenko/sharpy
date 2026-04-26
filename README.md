@@ -4,6 +4,8 @@
 
 High-performance image sharpening library and CLI tool for Rust.
 
+![Sharpy GUI demo — drag-drop an image and tweak every sharpening parameter live](docs/sharpy-gui-screenshot.png)
+
 > **Want to play with it first?** There's an [optional Windows GUI demo](#optional-gui-demo)
 > with live sliders for every parameter — the fastest way to see what
 > sharpy can do.
