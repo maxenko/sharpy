@@ -300,23 +300,28 @@ fn test_preset_integration() {
 
 #[test]
 fn test_memory_bounds_checking() {
-    // Test that extremely large images are rejected
-    let huge_image = RgbImage::new(100000, 100000); // 10 billion pixels
-    let result = Image::from_rgb(huge_image);
+    // Pixel-count branch: each dimension is within MAX_IMAGE_DIMENSION
+    // (65 536), but the product exceeds MAX_IMAGE_PIXELS (100 M). We
+    // construct only as large as needed to trip the check — going to
+    // 100 000 × 100 000 here would OOM CI runners before the validator
+    // even runs, since the buffer is allocated up front by `RgbImage::new`.
+    let over_pixel_count = RgbImage::new(20_000, 5_001); // 100.02 M pixels (~286 MB)
+    let result = Image::from_rgb(over_pixel_count);
     assert!(
         result.is_err(),
-        "Should reject images exceeding memory limits"
+        "Should reject images exceeding pixel-count limit"
     );
 
-    // Test dimension limits
-    let tall_image = RgbImage::new(100, 70000); // Exceeds max dimension
-    let result = Image::from_rgb(tall_image);
+    // Dimension branch: a single side exceeds MAX_IMAGE_DIMENSION. The
+    // image itself is small (~21 MB), so this is cheap to allocate.
+    let over_dim = RgbImage::new(100, 70_000); // 70 000 > 65 536
+    let result = Image::from_rgb(over_dim);
     assert!(
         result.is_err(),
-        "Should reject images exceeding dimension limits"
+        "Should reject images exceeding dimension limit"
     );
 
-    // Test that reasonable images are accepted
+    // Reasonable image is accepted.
     let normal_image = RgbImage::new(4096, 4096); // 16 megapixels
     let result = Image::from_rgb(normal_image);
     assert!(result.is_ok(), "Should accept reasonably sized images");
