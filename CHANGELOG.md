@@ -7,26 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-26
+
 ### Added
-- Memory bounds checking to prevent processing extremely large images (max 100MP, max dimension 65k)
-- Comprehensive integration tests for image processing algorithms
-- Test coverage for edge strength measurement and visual regression
+- `Operation::apply(image)` so each variant of the shared `Operation` enum
+  can be applied directly without constructing a builder
+- `SharpeningBuilder::operations(&self) -> &[Operation]` accessor for
+  inspecting (and replaying) the operations a builder will run
+- `Image::from_arc_rgb(Arc<RgbImage>)` constructor for the copy-on-write
+  case where the caller already holds an `Arc`-shared source
+- Memory bounds checking to prevent processing extremely large images
+  (max 100 MP, max dimension 65 k)
+- Comprehensive integration tests for image processing algorithms,
+  including edge-strength measurement and visual-regression coverage
 - Shared `Operation` enum between library and CLI
+- GitHub Actions CI: build + test on Linux / Windows / macOS, clippy with
+  `-D warnings`, and `cargo fmt --check`
+- Optional `sharpy-gui` Windows desktop demo (separate workspace member,
+  `publish = false`, never shipped to crates.io). Drag-drop image loading,
+  live slider preview, worker-thread save
 
 ### Changed
-- `Image::from_rgb()` and `Image::from_dynamic()` now return `Result<Image>` for safety
-- Optimized parallel processing to eliminate intermediate vector allocations
+- Repo is now a Cargo workspace; the root crate (`sharpy`) is the default
+  member, so `cargo build`/`test` at the root stays lib-only and does not
+  pull in GUI dependencies
+- `Cargo.lock` is now tracked (the workspace ships binaries)
+- `Image::from_rgb()` and `Image::from_dynamic()` return `Result<Image>`
+  for safety
+- `clamp_u8` is now `pub(crate)` (was private with duplicated
+  reimplementations in callers)
+- Optimized parallel processing to eliminate intermediate vector
+  allocations
 - Improved memory efficiency by processing image rows in-place
 - Consolidated duplicate Operation enums between CLI and library
+- CLI: `clap::ValueEnum`-derived parsing for `--method` and `--preset`
+  arguments, slice-pattern `parse_single_operation` with case-insensitive
+  matching
 
 ### Fixed
-- Memory inefficiency in `unsharp_mask`, `enhance_edges`, and `clarity` functions
+- Memory inefficiency in `unsharp_mask`, `enhance_edges`, and `clarity`
 - Unnecessary cloning when using `Arc` in `into_arc_dynamic()`
-- README.md overly promotional language and incorrect "zero dependencies" claim
+- README overly promotional language and incorrect "zero dependencies"
+  claim
+- Pre-existing `bench` compile error (`Image::from_rgb` missing `?`)
 
 ### Performance
-- Reduced memory usage by ~50% for large images through streaming pixel processing
-- Eliminated collection of all pixels into vectors before applying changes
+- Reduced memory usage by ~50% for large images through streaming pixel
+  processing
+- Eliminated collection of all pixels into vectors before applying
+  changes
 - Improved cache locality with row-based parallel processing
 
 ## [0.1.0] - 2025-08-03
@@ -72,5 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - glob 0.3 (CLI only)
 - anyhow 1.0 (CLI only)
 
-[Unreleased]: https://github.com/maxenko/sharpy/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/maxenko/sharpy/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/maxenko/sharpy/compare/v0.1.0...v0.2.1
 [0.1.0]: https://github.com/maxenko/sharpy/releases/tag/v0.1.0
