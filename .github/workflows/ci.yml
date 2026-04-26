@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Library + CLI: portable, so we matrix across the three majors.
+  # `default-members = ["."]` in the workspace root keeps `cargo build`/`test`
+  # scoped to the root crate; the GUI member is built separately below.
+  lib:
+    name: lib (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: lib-${{ matrix.os }}
+      - name: Build
+        run: cargo build --verbose
+      - name: Test
+        run: cargo test --verbose
+
+  # GUI is Windows-only by design (see sharpy-gui/README.md). eframe is
+  # cross-platform but cross-platform support is not a goal — limit GUI CI
+  # to where it's actually expected to work.
+  gui:
+    name: gui (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: gui-windows
+      - name: Build (release)
+        run: cargo build -p sharpy-gui --release --verbose
+      - name: Test
+        run: cargo test -p sharpy-gui --verbose
+
+  # Clippy on Windows so the GUI's eframe/winit deps are buildable in the
+  # same job — one --workspace pass covers both lib and gui.
+  clippy:
+    name: clippy (workspace)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: clippy-windows
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # Format check is platform-independent and cheap — no cache needed.
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check

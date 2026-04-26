@@ -1,6 +1,12 @@
 # Sharpy
 
+[![CI](https://github.com/maxenko/sharpy/actions/workflows/ci.yml/badge.svg)](https://github.com/maxenko/sharpy/actions/workflows/ci.yml)
+
 High-performance image sharpening library and CLI tool for Rust.
+
+> **Want to play with it first?** There's an [optional Windows GUI demo](#optional-gui-demo)
+> with live sliders for every parameter — the fastest way to see what
+> sharpy can do.
 
 ## Quick Start
 
@@ -35,6 +41,7 @@ sharpy preset portrait.jpg portrait_enhanced.jpg -p portrait
 - **Flexible API** - Builder pattern for complex workflows
 - **Minimal dependencies** - Core functionality with carefully selected dependencies
 - **CLI included** - Full-featured command-line tool
+- **Optional GUI demo** - Windows desktop app with live slider preview (see [`sharpy-gui/`](sharpy-gui/))
 
 ## Installation
 
@@ -44,7 +51,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sharpy = "0.1"
+sharpy = "0.2"
 ```
 
 ### As a CLI Tool
@@ -138,6 +145,28 @@ fn custom_enhancement(image: Image) -> sharpy::Result<Image> {
 }
 ```
 
+#### Inspecting and Replaying Operations
+
+Pipelines built with `SharpeningBuilder` can be inspected (e.g. for tests
+that verify a preset still emits the expected stages) and individual
+`Operation` values can be re-applied to any image:
+
+```rust
+use sharpy::{Image, Operation, SharpeningPresets};
+
+let image = Image::load("photo.jpg")?;
+let builder = SharpeningPresets::landscape(image.clone());
+
+// Inspect what stages the builder will run, in execution order.
+for op in builder.operations() {
+    println!("will apply: {}", op.name());
+}
+
+// Apply a single Operation directly.
+let unsharp = Operation::UnsharpMask { radius: 1.0, amount: 1.0, threshold: 0 };
+let sharpened = unsharp.apply(image)?;
+```
+
 #### Processing Multiple Images
 
 ```rust
@@ -177,12 +206,12 @@ fn batch_process(input_dir: &Path, output_dir: &Path) -> Result<(), Box<dyn std:
 use sharpy::Image;
 use image::{RgbImage, DynamicImage};
 
-// From various image types
+// From various image types (both return Result — see below)
 let rgb_image = RgbImage::new(800, 600);
-let image = Image::from_rgb(rgb_image);
+let image = Image::from_rgb(rgb_image)?;
 
 let dynamic_image = DynamicImage::new_rgb8(800, 600);
-let image = Image::from_dynamic(dynamic_image);
+let image = Image::from_dynamic(dynamic_image)?;
 
 // Get dimensions and histogram
 let (width, height) = image.dimensions();
@@ -311,6 +340,65 @@ sharpy batch "products/*.jpg" -o web/ -p "unsharp:0.8:0.8:2,clarity:0.3:2.0"
 sharpy edges scan.png scan_enhanced.png -s 1.5 -m prewitt
 ```
 
+## Optional GUI Demo
+
+`sharpy-gui` is an optional Windows desktop app that lets you try every
+sharpening parameter interactively. Drop an image onto the window, drag the
+sliders, and watch the preview update in real time. Save when you're happy.
+
+It's the easiest way to see what each algorithm does without writing any code.
+
+**What you get:**
+
+- Drag-drop or *Open…* to load any JPEG, PNG, BMP, TIFF, or WebP
+- Live preview as you move sliders — runs on a downscaled copy for speed
+- Six built-in presets in the toolbar dropdown (subtle, moderate, strong,
+  edge-aware, portrait, landscape)
+- Per-stage enable checkboxes and reset buttons
+- *Save As…* runs the full-resolution pipeline on a worker thread, so the
+  UI never freezes — even at the heaviest clarity settings
+
+### Run it from a checkout
+
+```bash
+git clone https://github.com/maxenko/sharpy
+cd sharpy
+
+# Debug build (faster to compile, slower to run)
+cargo run -p sharpy-gui
+
+# Release build (recommended for actual use)
+cargo run -p sharpy-gui --release
+```
+
+The GUI is a separate workspace member, so this won't touch the library
+or CLI build. Plain `cargo build` and `cargo test` at the root stay
+lib-only.
+
+### Build a standalone `.exe` to share
+
+```bash
+cargo build -p sharpy-gui --release
+# Binary: target/release/sharpy-gui.exe
+```
+
+The MSVC Rust toolchain links the C runtime statically, so the binary
+is **portable** — copy the `.exe` to any Windows machine and double-click
+to run. No installer, no Visual C++ Redistributable, no registry entries.
+
+### First-launch walkthrough
+
+1. **Drag an image** onto the window (or click *Open…*).
+2. **Pick a preset** from the toolbar dropdown to see a quick result.
+3. **Tweak individual sliders** in the right panel — radius, amount,
+   threshold, etc. The preview updates as you drag.
+4. **Save As…** to write the result to disk at full resolution. The
+   status bar shows progress and elapsed time.
+
+For known limitations, the architecture overview, and details on the
+preset-order quirk for `edge-aware`, see
+[`sharpy-gui/README.md`](sharpy-gui/README.md).
+
 ## Performance
 
 Sharpy uses parallel processing for optimal performance:
@@ -360,15 +448,19 @@ Parameters:
 
 ## Building from Source
 
+This is a Cargo workspace. The root crate (`sharpy`, library + `sharpy`
+CLI) is the default member, so most commands at the root only touch the
+library — the optional `sharpy-gui` member is built explicitly with `-p`.
+
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/sharpy
+git clone https://github.com/maxenko/sharpy
 cd sharpy
 
-# Build library and CLI
+# Build library + CLI (does NOT pull in GUI deps)
 cargo build --release
 
-# Run tests
+# Run tests (root crate only)
 cargo test
 
 # Run benchmarks
@@ -376,16 +468,14 @@ cargo bench
 
 # Install CLI globally
 cargo install --path .
+
+# Build the optional GUI demo (Windows-only target)
+cargo build -p sharpy-gui --release
 ```
 
 ## License
 
-Licensed under either of:
-
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-- MIT license ([LICENSE-MIT](LICENSE-MIT))
-
-at your option.
+Licensed under the MIT License ([LICENSE](LICENSE)).
 
 ## Contributing
 

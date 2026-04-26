@@ -1,37 +1,37 @@
 //! Common operation types used throughout the library and CLI.
 
-use crate::EdgeMethod;
+use crate::{EdgeMethod, Image, Result};
 
 /// Represents a sharpening operation that can be applied to an image.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operation {
     /// Unsharp mask operation
-    UnsharpMask { 
+    UnsharpMask {
         /// Blur radius (0.5-10.0)
-        radius: f32, 
+        radius: f32,
         /// Strength amount (0.0-5.0)
-        amount: f32, 
+        amount: f32,
         /// Threshold (0-255)
-        threshold: u8 
+        threshold: u8,
     },
     /// High-pass sharpening
-    HighPassSharpen { 
+    HighPassSharpen {
         /// Strength (0.0-3.0)
-        strength: f32 
+        strength: f32,
     },
     /// Edge enhancement
-    EnhanceEdges { 
+    EnhanceEdges {
         /// Strength (0.0-3.0)
-        strength: f32, 
+        strength: f32,
         /// Edge detection method
-        method: EdgeMethod 
+        method: EdgeMethod,
     },
     /// Clarity enhancement
-    Clarity { 
+    Clarity {
         /// Strength (0.0-3.0)
-        strength: f32, 
+        strength: f32,
         /// Radius (1.0-20.0)
-        radius: f32 
+        radius: f32,
     },
 }
 
@@ -43,6 +43,20 @@ impl Operation {
             Operation::HighPassSharpen { .. } => "High-Pass Sharpen",
             Operation::EnhanceEdges { .. } => "Edge Enhancement",
             Operation::Clarity { .. } => "Clarity",
+        }
+    }
+
+    /// Apply this operation to an image, consuming it and returning the result.
+    pub fn apply(&self, image: Image) -> Result<Image> {
+        match self {
+            Operation::UnsharpMask {
+                radius,
+                amount,
+                threshold,
+            } => image.unsharp_mask(*radius, *amount, *threshold),
+            Operation::HighPassSharpen { strength } => image.high_pass_sharpen(*strength),
+            Operation::EnhanceEdges { strength, method } => image.enhance_edges(*strength, *method),
+            Operation::Clarity { strength, radius } => image.clarity(*strength, *radius),
         }
     }
 }
